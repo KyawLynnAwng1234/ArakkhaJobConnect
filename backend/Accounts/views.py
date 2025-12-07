@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import update_session_auth_hash
+from django.http import JsonResponse
 import hashlib
 User = get_user_model()
 
@@ -35,4 +36,17 @@ def change_password(request):
     user.save()
     update_session_auth_hash(request, user)
     return Response({"success": "Password updated successfully."}, status=200)
+
+
+
+
+def check_email_exists(request):
+    email = request.GET.get("email", "").strip() 
+    if not email:
+        return JsonResponse({"exists": False})
+
+    exists = User.objects.filter(email__iexact=email).exists()
+
+    return JsonResponse({"exists": exists})
+
 

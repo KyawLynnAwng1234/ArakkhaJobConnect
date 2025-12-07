@@ -24,7 +24,8 @@ User = get_user_model()
 @permission_classes([AllowAny])
 @ratelimit(key='ip', rate='5/m', block=False, method='POST')
 def signin_jobseeker(request, role):
-    # Rate limit check
+
+    # Rate limit
     if getattr(request, 'limited', False):
         return Response(
             {"error": "Too many attempts, please wait one minute before trying again."},
@@ -37,44 +38,50 @@ def signin_jobseeker(request, role):
 
     email = serializer.validated_data.get('email')
     if not email:
-        return Response({"error": "Please enter your email."},
-                        status=status.HTTP_400_BAD_REQUEST)
-    
-    # Create or get the user
+        return Response(
+            {"error": "Please enter your email."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Create or retrieve user
     user, created = CustomUser.objects.get_or_create(
         email=email.lower(),
-        defaults={
-            "role": role,
-            "is_active": True,
-        }
+        defaults={"role": role, "is_active": True}
     )
+
     if not user.is_active:
         return Response(
             {"error": "Your account is not active. Please contact support."},
             status=status.HTTP_403_FORBIDDEN
         )
 
-    # Send OTP
-    try:
-        code = send_verification_code(user)
-        print("OTP:", code)
-    except Exception as e:
-        print("Email Error:", e)
+    # -------------------------
+    # SEND OTP (Safe version)
+    # -------------------------
+    code = send_verification_code(user)
+
+    if code is None:
+        # Email provider (MailerSend) blocked or failed
         return Response(
-            {"error": "Failed to send verification code."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": "Email service rejected OTP. Try again later."},
+            status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Save OTP session
+    print("OTP:", code)  # Only for debugging
+
+    # Save OTP to session
     request.session['verification_code'] = code
     request.session['email'] = user.email
     request.session['user_id'] = str(user.id)
     request.session['otp_created_at'] = timezone.now().isoformat()
+
+    # Success message
     message = (
         "Account created and verification code sent to "
         if created else
         "Verification code sent to "
     ) + user.email
+
     return Response(
         {
             "message": message,
@@ -87,6 +94,8 @@ def signin_jobseeker(request, role):
         },
         status=status.HTTP_200_OK
     )
+
+
 
 # job-seeker-signin-end
 

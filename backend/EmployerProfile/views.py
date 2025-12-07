@@ -1,3 +1,4 @@
+from django.shortcuts import render, redirect
 from rest_framework.decorators import api_view,permission_classes,parser_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -54,6 +55,7 @@ def preregister_employer(request):
 @parser_classes([MultiPartParser, FormParser])
 def register_employer(request, role):
     data = request.data.copy()
+
     # --- Parse profile JSON ---
     profile_str = data.get("profile")
     if profile_str:
@@ -63,11 +65,14 @@ def register_employer(request, role):
             return Response({"profile": ["Invalid JSON format."]}, status=400)
     else:
         profile_data = {}
+
     logo_file = request.FILES.get("logo")
+
     serializer = EmployerRegisterSerializer(
         data={"profile": profile_data, "logo": logo_file}
     )
     serializer.is_valid(raise_exception=True)
+
     # Fetch from session
     email = request.session.get("user_email")
     raw_password = request.session.get("user_password")
@@ -77,48 +82,51 @@ def register_employer(request, role):
             {"error": "Your session has expired. Please start registration again."},
             status=400
         )
-    #Friendly User Exists Check
+
+    # User existence check
     if User.objects.filter(email=email).exists():
         return Response(
-            {
-                "error": "This email is already registered. Try logging in instead.",
-                "code": "EMAIL_EXISTS",
-            },
+            {"error": "This email is already registered. Try logging in instead.", "code": "EMAIL_EXISTS"},
             status=409
         )
 
-    #EmployerProfile Exists Check
-    # (must check via user__email, not contact_email)
+    # Profile existence check
     if EmployerProfile.objects.filter(user__email=email).exists():
         return Response(
-            {
-                "error": "An employer profile already exists for this email.",
-                "code": "PROFILE_EXISTS",
-            },
+            {"error": "An employer profile already exists for this email.", "code": "PROFILE_EXISTS"},
             status=409
         )
 
-    #Create User safely
-    user = User.objects.create(
-        email=email,
-        role=role,
-        is_active=False,
-        is_verified=False,
-    )
+    # CREATE USER (NOT ACTIVE YET) — but send email first
+    user = User(email=email, role=role, is_active=False, is_verified=False)
     user.set_password(raw_password)
     user.save()
 
-    #Create Employer Profile
+    # SEND VERIFICATION EMAIL SAFELY
+    email_sent = send_verification_email(request, user)
+
+    if not email_sent:
+        # Rollback user creation if email fails
+        user.delete()
+        return Response(
+            {"error": "Email provider rejected verification email. Try again later."},
+            status=400
+        )
+
+    # NOW create employer profile (only if email sent)
     profile_data = serializer.validated_data["profile"]
     logo = serializer.validated_data.get("logo")
+
     employer_profile = EmployerProfile.objects.create(
-        user=user, logo=logo, **profile_data
+        user=user,
+        logo=logo,
+        **profile_data
     )
 
-    # Login + send email
+    # Login the user
     login(request, user)
-    send_verification_email(request, user)
     request.session["pending_activation"] = True
+
     return Response(
         {
             "message": "Employer registered successfully. Verification email sent.",
@@ -135,6 +143,7 @@ def register_employer(request, role):
         },
         status=201
     )
+
 # end register employerprofile
 
 #sign in employer
@@ -148,15 +157,20 @@ def login_employer(request):
         )
         response['Retry-After'] = '60'
         return response
+
     email = request.data.get("email")
     password = request.data.get("password")
+
     user = authenticate(request, email=email, password=password)
+
     if user is not None:
         if not user.is_verified:
             return Response({"detail": "Please verify your email first."}, status=403)
         login(request, user)
         return Response({"detail": "Login successful"}, status=200)
+
     return Response({"detail": "Invalid credentials"}, status=400)
+
 
 #end sign in employer
 
@@ -175,45 +189,91 @@ def emailverify_employer(request, uidb64, token):
         user = User.objects.get(pk=uid)
     except (User.DoesNotExist, ValueError, TypeError, OverflowError):
         user = None
-    if user is not None and default_token_generator.check_token(user,token):
+    
+    if user.is_verified:
+        return render(request, "emails/already_verified.html")
+
+    # VALID TOKEN
+    if user is not None and default_token_generator.check_token(user, token):
         if not user.is_active:
             user.is_active = True
-            user.is_verified=True
+            user.is_verified = True
             user.save()
         return redirect("/employer/dashboard")
-    else:
-        return Response(
-            {"error": "Verification link is invalid or expired."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+
+    # INVALID OR EXPIRED TOKEN → PASS EMAIL INTO TEMPLATE
+    email = user.email if user else ""
+    return render(request, "emails/email_verify_invalid.html", {"email": email})
 #end email verify
 
 #resend verification email
 @ratelimit(key='ip', rate='2/m', block=False)
 @api_view(["POST"])
-@permission_classes([AllowAny])  # not logged in — fine
-def resend_verification(request):
-    if getattr(request, 'limited', False):
+@permission_classes([AllowAny])
+def resend_verification_api(request):
+
+    if getattr(request, "limited", False):
         response = Response(
             {"detail": "Too many resend attempts. Please wait one minute."},
-            status=status.HTTP_429_TOO_MANY_REQUESTS
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
-        response['Retry-After'] = '60'
-        return response    
+        response["Retry-After"] = "60"
+        return response
+
+    # Get email from session OR request body
     email = (request.session.get("user_email") or "").strip()
     if not email:
         email = (request.data.get("email") or "").strip()
+
     if not email:
-        return Response({"detail": "Email required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Email required."}, status=400)
+
+    # Check if user exists
     try:
         user = User.objects.get(email__iexact=email)
     except User.DoesNotExist:
+        # Do not reveal account existence
         return Response({"detail": "If your account exists, we sent a verification email."}, status=200)
+
+    # Already verified
     if getattr(user, "is_verified", False):
         return Response({"detail": "Your email is already verified."}, status=200)
-    send_verification_email(request, user)
+
+    # SAFE EMAIL SENDING (Anymail exception handled)
+    email_sent = send_verification_email(request, user)
+
+    if not email_sent:
+        return Response(
+            {"detail": "Email provider rejected verification email. Try again later."},
+            status=400,
+        )
     return Response({"detail": "Verification email sent."}, status=200)
 #end resend email verification link
+
+#resend email ui
+def resend_verification_page(request):
+    if request.method != "GET":
+        return redirect("/")
+    email = request.GET.get("email")
+    if not email:
+        email = request.session.get("user_email")
+    if not email:
+        if request.user.is_authenticated:
+            email = request.user.email
+        else:
+            return redirect('/employer/sign-in')
+    email = email.strip().lower()
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return render(request, "accounts/resend_failed.html")
+    
+    sent = send_verification_email(request, user)
+
+    if not sent:
+        return render(request, "accounts/resend_failed.html")
+    return render(request, "emails/resend_success.html", {"email": email})
+#end resend email verification link for ui
 
 #dashboard
 @api_view(['GET'])

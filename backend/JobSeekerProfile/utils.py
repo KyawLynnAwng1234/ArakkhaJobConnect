@@ -1,48 +1,54 @@
 import random
+import datetime
+from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-from django.template.loader import render_to_string
-import datetime
-from .models import JobseekerProfile
-
 
 
 def send_verification_code(user):
     """
-    Sends OTP to the user's email using a clean HTML email template.
-    Returns the OTP code as string.
+    Sends OTP using Django + Anymail MailerSend backend.
+    Returns OTP on success, None on failure.
     """
-    otp_code = str(random.randint(100000,999999))  # always 6 digits
+    otp_code = str(random.randint(100000, 999999))
     subject = "Your Email Verification Code"
-    jobseeker = user.email.split('@')[0] #user.email.split('@')[0]
-    
 
-    # Plain text fallback
-    text_content = (
-        f"Hello {jobseeker},\n\n"
-        f"Your OTP verification code is: {otp_code}\n"
-        f"This code expires in 5 minutes.\n\n"
-        f"If you did not request this, please ignore this email."
-    )
+    jobseeker_name = user.email.split("@")[0]
 
-    # HTML Version
+    # Build email HTML
     html_content = render_to_string(
         "emails/otp_verification.html",
         {
-            "username": jobseeker,
+            "username": jobseeker_name,
             "otp_code": otp_code,
             "year": datetime.datetime.now().year,
         },
     )
 
-    # Send email
-    email = EmailMultiAlternatives(
-        subject=subject,
-        body=text_content,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[user.email],
+    # Plain text version
+    text_content = (
+        f"Hello {jobseeker_name},\n\n"
+        f"Your OTP verification code is: {otp_code}\n"
+        f"This code expires in 5 minutes.\n\n"
+        f"If you did not request this, please ignore this email."
     )
-    email.attach_alternative(html_content, "text/html")
-    email.send(fail_silently=False)
 
-    return otp_code
+    try:
+        # Prepare message
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=f"{settings.MAILERSEND_FROM_NAME} <{settings.DEFAULT_FROM_EMAIL}>",
+            to=[user.email],
+        )
+        msg.attach_alternative(html_content, "text/html")
+
+        # → Try sending email (Anymail backend)
+        msg.send(fail_silently=False)
+
+        return otp_code  # SUCCESS
+
+    except Exception as e:
+        # → Catch ALL MailerSend/Anymail errors
+        print("EMAIL SEND ERROR:", e)
+        return None  # FAILURE
