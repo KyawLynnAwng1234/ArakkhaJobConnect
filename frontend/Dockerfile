@@ -1,38 +1,24 @@
-# -------------------------------------
-# 1️⃣ Build Stage (Vite Production Build)
-# -------------------------------------
+# ---------- BUILD STAGE ----------
 FROM node:18-alpine AS build
 
-# Set working directory
 WORKDIR /app
-
-# Copy package.json and lock file
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
 
-# Copy all frontend source code
-COPY . .
+# Copy env BEFORE build
+COPY .env.production ./
 
-# Build Vite production files
+COPY . .
 RUN npm run build
 
 
-
-# -------------------------------------
-# 2️⃣ NGINX Stage (Serve Static Files)
-# -------------------------------------
+# ---------- PRODUCTION STAGE ----------
 FROM nginx:1.25-alpine
 
-# Copy build output to nginx public folder
+# Copy the built files
 COPY --from=build /app/frontend_dist /usr/share/nginx/html
 
-# Replace default nginx config (optional but recommended)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Optional: custom nginx config (skip if not needed)
 
-# Expose port 80
 EXPOSE 80
-
-# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
