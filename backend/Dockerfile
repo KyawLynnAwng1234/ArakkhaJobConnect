@@ -24,6 +24,7 @@ COPY ca.pem /app/ca.pem
 # Collect static files
 RUN python manage.py collectstatic --noinput
 
+#
 # Render will inject PORT environment variable
 EXPOSE 10000
 
