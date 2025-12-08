@@ -200,15 +200,27 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://192.168.130.155:5173",
+    
+    # Frontend
     "https://arakkhajobconnect-1.onrender.com",
+
+    # Backend
     "https://arakkhajobconnect.onrender.com",
 
     "https://job.arakkha.tech",
 ]
 
-CORS_ALLOW_HEADERS = ["*"]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
-# CSRF – FINAL FIX (Required for OTP success)
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -221,11 +233,14 @@ CSRF_TRUSTED_ORIGINS = [
     "https://arakkhajobconnect.onrender.com",
 ]
 
-#  Cookie settings for OTP
+#  Cookie settings for OTP & Login
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SAMESITE = "Lax"
+
+# IMPORTANT FIX
+SESSION_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SAMESITE = "None"
+
 
 # Media
 MEDIA_URL = '/media/'
