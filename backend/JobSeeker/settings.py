@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from decouple import config
+import dj_database_url
 
 
 AUTH_USER_MODEL = 'Accounts.CustomUser'
@@ -13,7 +14,7 @@ ACCOUNT_AUTHENTICATION_METHOD = 'email'
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', True)
+DEBUG = config("DEBUG", default=False, cast=bool)
 
 #ALLOWED_HOSTS — FINAL (Fixes OTP + Cookie Issues)
 ALLOWED_HOSTS = [
@@ -98,12 +99,27 @@ TEMPLATES[0]["OPTIONS"]["context_processors"] += [
 WSGI_APPLICATION = 'JobSeeker.wsgi.application'
 
 # Database (SQLite local)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Database (SQLite local)
+if DEBUG:
+    # Local development (SQLite)
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+        }
     }
-}
+
+else:
+    # Production (Aiven PostgreSQL)
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=os.environ.get("DATABASE_URL"),
+            conn_max_age=600,
+            ssl_require=True
+        )
+    }
+
 
 TIME_ZONE = "Asia/Yangon"
 USE_TZ = True

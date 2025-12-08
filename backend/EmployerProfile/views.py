@@ -55,7 +55,6 @@ def preregister_employer(request):
 @parser_classes([MultiPartParser, FormParser])
 def register_employer(request, role):
     data = request.data.copy()
-
     # --- Parse profile JSON ---
     profile_str = data.get("profile")
     if profile_str:
@@ -65,55 +64,38 @@ def register_employer(request, role):
             return Response({"profile": ["Invalid JSON format."]}, status=400)
     else:
         profile_data = {}
-
     logo_file = request.FILES.get("logo")
-
     serializer = EmployerRegisterSerializer(
         data={"profile": profile_data, "logo": logo_file}
     )
     serializer.is_valid(raise_exception=True)
-
-    # Fetch from session
     email = request.session.get("user_email")
     raw_password = request.session.get("user_password")
-
     if not email or not raw_password:
         return Response(
             {"error": "Your session has expired. Please start registration again."},
             status=400
         )
-
-    # User existence check
     if User.objects.filter(email=email).exists():
         return Response(
             {"error": "This email is already registered. Try logging in instead.", "code": "EMAIL_EXISTS"},
             status=409
         )
-
-    # Profile existence check
     if EmployerProfile.objects.filter(user__email=email).exists():
         return Response(
             {"error": "An employer profile already exists for this email.", "code": "PROFILE_EXISTS"},
             status=409
         )
-
-    # CREATE USER (NOT ACTIVE YET) — but send email first
     user = User(email=email, role=role, is_active=False, is_verified=False)
     user.set_password(raw_password)
     user.save()
-
-    # SEND VERIFICATION EMAIL SAFELY
     email_sent = send_verification_email(request, user)
-
     if not email_sent:
-        # Rollback user creation if email fails
         user.delete()
         return Response(
             {"error": "Email provider rejected verification email. Try again later."},
             status=400
         )
-
-    # NOW create employer profile (only if email sent)
     profile_data = serializer.validated_data["profile"]
     logo = serializer.validated_data.get("logo")
 
@@ -122,11 +104,8 @@ def register_employer(request, role):
         logo=logo,
         **profile_data
     )
-
-    # Login the user
     login(request, user)
     request.session["pending_activation"] = True
-
     return Response(
         {
             "message": "Employer registered successfully. Verification email sent.",
@@ -157,21 +136,15 @@ def login_employer(request):
         )
         response['Retry-After'] = '60'
         return response
-
     email = request.data.get("email")
     password = request.data.get("password")
-
     user = authenticate(request, email=email, password=password)
-
     if user is not None:
         if not user.is_verified:
             return Response({"detail": "Please verify your email first."}, status=403)
         login(request, user)
         return Response({"detail": "Login successful"}, status=200)
-
     return Response({"detail": "Invalid credentials"}, status=400)
-
-
 #end sign in employer
 
 #sign out employer
