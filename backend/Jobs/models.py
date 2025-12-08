@@ -89,7 +89,7 @@ class Jobs(models.Model):
     title = models.CharField(max_length=150)
     description = models.TextField()
     location = models.CharField(choices=LOCATION_CHOICES,default='MO',null=True)
-    job_type = models.CharField(choices=JOB_TYPE_CHOICES,default='FULL',null=True)
+    job_type = models.CharField(choices=JOB_TYPE_CHOICES,default='FULL',null=True,max_length=200)
     salary = models.DecimalField(max_digits=12,decimal_places=2, null=True, blank=True)
     category = models.ForeignKey(JobCategory, on_delete=models.SET_NULL, null=True)
     is_active = models.BooleanField(default=True)
