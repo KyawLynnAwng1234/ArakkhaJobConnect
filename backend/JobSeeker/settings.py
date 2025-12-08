@@ -13,7 +13,8 @@ ACCOUNT_AUTHENTICATION_METHOD = 'email'
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config('SECRET_KEY')
+SECRET_KEY = config('SECRET_KEY', default="dev-secret-docker-build-key")
+
 DEBUG = config("DEBUG", default=False, cast=bool)
 
 #ALLOWED_HOSTS — FINAL (Fixes OTP + Cookie Issues)
@@ -111,7 +112,7 @@ if DEBUG:
     }
 
 else:
-    # Production (Aiven PostgreSQL)
+    # Production (MySQL on Hostinger)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
