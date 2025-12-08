@@ -19,6 +19,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the project
 COPY . .
 
+COPY ca.pem /app/ca.pem
+
 # Render will inject PORT environment variable
 EXPOSE 10000
 

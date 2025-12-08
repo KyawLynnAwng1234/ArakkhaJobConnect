@@ -113,11 +113,17 @@ if DEBUG:
 else:
     # Production (Aiven PostgreSQL)
     DATABASES = {
-        "default": dj_database_url.config(
-            default=os.environ.get("DATABASE_URL"),
-            conn_max_age=600,
-            ssl_require=True
-        )
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv('MYSQL_DB'),
+            'USER': os.getenv('MYSQL_USER'),
+            'PASSWORD': os.getenv('MYSQL_PASS'),
+            'HOST': os.getenv('MYSQL_HOST'),
+            'PORT': os.getenv('MYSQL_PORT'),
+            'OPTIONS': {
+                'ssl': {'ca': os.path.join(BASE_DIR, 'ca.pem')}
+            }
+        }
     }
 
 
