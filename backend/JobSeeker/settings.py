@@ -152,7 +152,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # Email Settings
-MAILERSEND_API_TOKEN = config("MAILERSEND_API_TOKEN")
+MAILERSEND_API_TOKEN = config("MAILERSEND_API_TOKEN", default="dummy-mailersend-token")
 
 ANYMAIL = {
     "MAILERSEND_API_TOKEN": MAILERSEND_API_TOKEN,
@@ -160,7 +160,7 @@ ANYMAIL = {
 
 EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
 
-DEFAULT_FROM_EMAIL = config("MAILERSEND_FROM_EMAIL")
+DEFAULT_FROM_EMAIL = config("MAILERSEND_FROM_EMAIL", default="dummy@example.com")
 MAILERSEND_FROM_NAME = config("MAILERSEND_FROM_NAME", default="Arakkha Job Connect")
 
 
@@ -169,14 +169,15 @@ MAILERSEND_FROM_NAME = config("MAILERSEND_FROM_NAME", default="Arakkha Job Conne
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'APP': {
-            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
-            'secret':   os.getenv('GOOGLE_SECRET'),
+            'client_id': os.getenv('GOOGLE_CLIENT_ID', "dummy-google-client"),
+            'secret':   os.getenv('GOOGLE_SECRET', "dummy-google-secret"),
             'key': ''
         },
         'SCOPE': ['profile', 'email'],
         'AUTH_PARAMS': {'access_type': 'online', 'prompt': 'select_account'}
     }
 }
+
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
