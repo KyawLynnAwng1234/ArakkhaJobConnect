@@ -6,17 +6,17 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# Copy env and rename to .env so Vite loads it
-COPY .env.production ./.env
+# Copy env file correctly
+COPY .env.production /app/.env.production
 
-# Copy the rest
+# Now copy the rest of frontend code
 COPY . .
+
 RUN npm run build
 
 # ---------- PRODUCTION STAGE ----------
 FROM nginx:1.25-alpine
 
-# Copy compiled frontend
 COPY --from=build /app/frontend_dist /usr/share/nginx/html
 
 EXPOSE 80
