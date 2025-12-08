@@ -23,4 +23,4 @@ COPY . .
 EXPOSE 10000
 
 # Run Gunicorn using Render's PORT
-CMD ["bash", "-c", "gunicorn JobSeeker.wsgi:application --bind 0.0.0.0:$PORT --workers 3"]
+CMD ["bash", "-c", "python manage.py migrate && gunicorn JobSeeker.wsgi:application --bind 0.0.0.0:$PORT --workers 3"]
