@@ -201,6 +201,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://192.168.130.155:5173",
     "https://arakkhajobconnect-1.onrender.com",
+    "https://arakkhajobconnect.onrender.com",
 
     "https://job.arakkha.tech",
 ]
@@ -217,6 +218,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://www.job.arakkha.tech",
 
     "https://arakkhajobconnect-1.onrender.com",
+    "https://arakkhajobconnect.onrender.com",
 ]
 
 #  Cookie settings for OTP
