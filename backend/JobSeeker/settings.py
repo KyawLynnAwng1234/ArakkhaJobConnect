@@ -202,7 +202,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.130.155:5173",
     
     # Frontend
-    "https://arakkhajobconnect-1.onrender.com",
+    "https://arakkhajobconnect-frontend-kg27.onrender.com",
 
     # Backend
     "https://arakkhajobconnect.onrender.com",
@@ -229,7 +229,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://job.arakkha.tech",
     "https://www.job.arakkha.tech",
 
-    "https://arakkhajobconnect-1.onrender.com",
+    "https://arakkhajobconnect-frontend-kg27.onrender.com",
     "https://arakkhajobconnect.onrender.com",
 ]
 
