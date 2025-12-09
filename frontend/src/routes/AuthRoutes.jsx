@@ -15,15 +15,15 @@ export const AuthRoutes = (
   <>
     {/* Jobseeker Auth */}
     <Route element={<RedirectIfAuthenticated />}>
-      <Route path="sign-in" element={<SignIn />} />
-      <Route path="verify" element={<VerifyOTP />} />
+      <Route path="/sign-in" element={<SignIn />} />
+      <Route path="/verify" element={<VerifyOTP />} />
     </Route>
 
     {/* Employer Auth */}
-    <Route path="employer/sign-in" element={<EmployerSignIn />} />
-    <Route path="employer/register" element={<EmployerRegister />} />
+    <Route path="/employer/sign-in" element={<EmployerSignIn />} />
+    <Route path="/employer/register" element={<EmployerRegister />} />
     <Route
-      path="employer/company/detail"
+      path="/employer/company/detail"
       element={<EmployerCompanyDetail />}
     />
   </>
